@@ -72,3 +72,18 @@ export function getColorPreset(index: number): ColorPreset {
     index: normalizedIndex,
   };
 }
+
+export function getLightNoteTint(index: number): string {
+  const normalizedIndex = Math.max(0, Math.min(99, index)) % COLOR_PRESETS.length;
+  const tints = [
+    'linear-gradient(180deg, #fbfaf7 0%, #f7f7f5 100%)',
+    'linear-gradient(180deg, #fffaf0 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #f0f9ff 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #effdf6 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #f7f3ff 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #fff1f4 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #fff6ed 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #f1f4ff 0%, #fbfaf7 72%)',
+  ];
+  return tints[normalizedIndex];
+}

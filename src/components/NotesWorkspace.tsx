@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Note, Profile } from '../types';
-import { getColorPreset, COLOR_PRESETS } from '../lib/colors';
+import { getColorPreset, COLOR_PRESETS, getLightNoteTint } from '../lib/colors';
 import {
   Search,
   Grid,
@@ -940,7 +940,7 @@ interface NoteReadViewProps {
 }
 
 function NoteReadView({ note, onClose, onEdit }: NoteReadViewProps) {
-  const preset = getColorPreset(note.color_index);
+  const readTint = getLightNoteTint(note.color_index);
   const lastTapAtRef = useRef(0);
 
   useEffect(() => {
@@ -971,24 +971,29 @@ function NoteReadView({ note, onClose, onEdit }: NoteReadViewProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 12 }}
       transition={{ duration: 0.18 }}
-      className={`fixed inset-0 z-50 flex flex-col border-0 font-sans ${preset.bgClass}`}
+      className="fixed inset-0 z-50 isolate flex flex-col border-0 bg-[#fbfaf7] font-sans text-slate-950"
     >
-      <header className="h-16 shrink-0 border-b border-black/5 dark:border-white/10 bg-white/70 dark:bg-black/20 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between gap-3">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{ background: readTint }}
+      />
+      <header className="relative z-10 h-16 shrink-0 border-b border-black/5 bg-white/85 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between gap-3">
         <button
           id="btn-read-back"
           type="button"
           onClick={onClose}
           title="Back"
-          className="w-10 h-10 rounded-full bg-white/80 dark:bg-zinc-900/80 border border-black/10 dark:border-white/10 text-slate-700 dark:text-zinc-200 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 transition"
+          className="w-10 h-10 rounded-full bg-white/95 border border-black/10 text-slate-700 flex items-center justify-center hover:bg-white transition shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
         <div className="flex-1 min-w-0 text-center">
-          <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 dark:text-zinc-500">
+          <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">
             Read
           </p>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+          <p className="text-xs text-slate-500 truncate">
             {new Date(note.updated_at).toLocaleString()}
           </p>
         </div>
@@ -998,33 +1003,33 @@ function NoteReadView({ note, onClose, onEdit }: NoteReadViewProps) {
           type="button"
           onClick={onEdit}
           title="Edit note"
-          className="w-10 h-10 rounded-full bg-slate-950 dark:bg-amber-500 text-white dark:text-zinc-950 flex items-center justify-center hover:opacity-90 transition shadow-sm"
+          className="w-10 h-10 rounded-full bg-slate-950 text-white flex items-center justify-center hover:opacity-90 transition shadow-sm"
         >
           <Pencil className="w-4 h-4" />
         </button>
       </header>
 
       <main
-        className="flex-1 overflow-y-auto px-5 py-8 sm:px-10 lg:px-16"
+        className="relative z-10 flex-1 overflow-y-auto px-5 py-8 sm:px-10 lg:px-16"
         onPointerUp={handleReadPointerUp}
       >
         <article className="mx-auto max-w-3xl space-y-7">
           <div className="flex items-start gap-3">
             {note.is_pinned && (
-              <div className="mt-1 w-8 h-8 shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-200 flex items-center justify-center border border-amber-200 dark:border-amber-900">
+              <div className="mt-1 w-8 h-8 shrink-0 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center border border-amber-200">
                 <Pin className="w-4 h-4 fill-current" />
               </div>
             )}
-            <h1 className="text-3xl sm:text-5xl font-black leading-tight text-slate-950 dark:text-white break-words">
+            <h1 className="text-3xl sm:text-5xl font-black leading-tight text-slate-950 break-words">
               {note.title || 'Untitled thoughts'}
             </h1>
           </div>
 
-          <div className="min-h-[55vh] whitespace-pre-wrap break-words text-base sm:text-lg leading-8 text-slate-700 dark:text-zinc-200">
+          <div className="min-h-[55vh] whitespace-pre-wrap break-words text-base sm:text-lg leading-8 text-slate-700">
             {note.content ? (
               <LinkifiedText text={note.content} />
             ) : (
-              <span className="italic text-slate-400 dark:text-zinc-500">No content entered...</span>
+              <span className="italic text-slate-400">No content entered...</span>
             )}
           </div>
         </article>
@@ -1053,7 +1058,7 @@ function LinkifiedText({ text }: { text: string }) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 font-semibold text-indigo-700 dark:text-amber-300 underline decoration-current/30 underline-offset-4 hover:decoration-current"
+        className="inline-flex items-center gap-1 font-semibold text-indigo-700 underline decoration-current/30 underline-offset-4 hover:decoration-current"
         onClick={(e) => e.stopPropagation()}
       >
         <span>{cleanMatch}</span>
