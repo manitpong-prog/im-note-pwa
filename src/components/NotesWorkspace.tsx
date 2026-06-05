@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Note, Profile } from '../types';
 import { getColorPreset, COLOR_PRESETS } from '../lib/colors';
@@ -21,11 +21,13 @@ import {
   User,
   Check,
   X,
+  ArrowLeft,
+  ExternalLink,
+  Pencil,
   FileText,
   AlertTriangle,
   Loader2,
   Menu,
-  Database
 } from 'lucide-react';
 import NoteModal from './NoteModal';
 import { motion, AnimatePresence } from 'motion/react';
@@ -52,6 +54,7 @@ export default function NotesWorkspace({ user, onSignOut }: NotesWorkspaceProps)
 
   // Modals state
   const [activeModalNote, setActiveModalNote] = useState<Note | null>(null);
+  const [activeReadNote, setActiveReadNote] = useState<Note | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -213,6 +216,7 @@ export default function NotesWorkspace({ user, onSignOut }: NotesWorkspaceProps)
 
   // Save/Edit action handler inside modal
   const handleSaveNote = (savedNote: Note) => {
+    setActiveReadNote(prev => prev?.id === savedNote.id ? savedNote : prev);
     setNotes(prev => {
       const exists = prev.some(n => n.id === savedNote.id);
       let updatedList;
@@ -643,6 +647,7 @@ export default function NotesWorkspace({ user, onSignOut }: NotesWorkspaceProps)
                         key={note.id}
                         note={note}
                         layout={viewLayout}
+                        onRead={() => setActiveReadNote(note)}
                         onEdit={() => {
                           setActiveModalNote(note);
                           setIsModalOpen(true);
@@ -676,6 +681,7 @@ export default function NotesWorkspace({ user, onSignOut }: NotesWorkspaceProps)
                         key={note.id}
                         note={note}
                         layout={viewLayout}
+                        onRead={() => setActiveReadNote(note)}
                         onEdit={() => {
                           setActiveModalNote(note);
                           setIsModalOpen(true);
@@ -703,6 +709,21 @@ export default function NotesWorkspace({ user, onSignOut }: NotesWorkspaceProps)
         </footer>
 
       </main>
+
+      {/* Note Edit/Create Modal overlay */}
+      <AnimatePresence>
+        {activeReadNote && (
+          <NoteReadView
+            note={activeReadNote}
+            onClose={() => setActiveReadNote(null)}
+            onEdit={() => {
+              setActiveModalNote(activeReadNote);
+              setActiveReadNote(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Note Edit/Create Modal overlay */}
       <AnimatePresence>
@@ -767,22 +788,64 @@ interface NoteCardProps {
   key?: string | number;
   note: Note;
   layout: 'grid' | 'list';
+  onRead: () => void;
   onEdit: () => void;
   onTogglePin: (e: React.MouseEvent) => void;
   onDelete: () => void;
   onQuickColor: (e: React.MouseEvent, colorIndex: number) => void;
 }
 
-function NoteCard({ note, layout, onEdit, onTogglePin, onDelete, onQuickColor }: NoteCardProps) {
+function NoteCard({ note, layout, onRead, onEdit, onTogglePin, onDelete, onQuickColor }: NoteCardProps) {
   const preset = getColorPreset(note.color_index);
   const [hovered, setHovered] = useState(false);
+  const tapTimerRef = useRef<number | null>(null);
+  const lastTapAtRef = useRef(0);
+
+  const clearPendingRead = () => {
+    if (tapTimerRef.current !== null) {
+      window.clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => clearPendingRead, []);
+
+  const handleCardPointerUp = (e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, input, textarea, select')) return;
+
+    const now = Date.now();
+    if (now - lastTapAtRef.current < 280) {
+      clearPendingRead();
+      lastTapAtRef.current = 0;
+      onEdit();
+      return;
+    }
+
+    lastTapAtRef.current = now;
+    clearPendingRead();
+    tapTimerRef.current = window.setTimeout(() => {
+      tapTimerRef.current = null;
+      onRead();
+    }, 220);
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onRead();
+    }
+  };
 
   return (
     <motion.div
       id={`note-card-${note.id}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={onEdit}
+      onPointerUp={handleCardPointerUp}
+      onKeyDown={handleCardKeyDown}
+      role="button"
+      tabIndex={0}
       className={`border rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer flex flex-col justify-between relative ${preset.bgClass} ${
         layout === 'list' ? 'sm:flex-row sm:items-center sm:gap-4' : 'h-60'
       }`}
@@ -868,4 +931,147 @@ function NoteCard({ note, layout, onEdit, onTogglePin, onDelete, onQuickColor }:
       </div>
     </motion.div>
   );
+}
+
+interface NoteReadViewProps {
+  note: Note;
+  onClose: () => void;
+  onEdit: () => void;
+}
+
+function NoteReadView({ note, onClose, onEdit }: NoteReadViewProps) {
+  const preset = getColorPreset(note.color_index);
+  const lastTapAtRef = useRef(0);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleReadPointerUp = (e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a')) return;
+
+    const now = Date.now();
+    if (now - lastTapAtRef.current < 320) {
+      lastTapAtRef.current = 0;
+      onEdit();
+      return;
+    }
+
+    lastTapAtRef.current = now;
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 12 }}
+      transition={{ duration: 0.18 }}
+      className={`fixed inset-0 z-50 flex flex-col border-0 font-sans ${preset.bgClass}`}
+    >
+      <header className="h-16 shrink-0 border-b border-black/5 dark:border-white/10 bg-white/70 dark:bg-black/20 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between gap-3">
+        <button
+          id="btn-read-back"
+          type="button"
+          onClick={onClose}
+          title="Back"
+          className="w-10 h-10 rounded-full bg-white/80 dark:bg-zinc-900/80 border border-black/10 dark:border-white/10 text-slate-700 dark:text-zinc-200 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 transition"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        <div className="flex-1 min-w-0 text-center">
+          <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 dark:text-zinc-500">
+            Read
+          </p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+            {new Date(note.updated_at).toLocaleString()}
+          </p>
+        </div>
+
+        <button
+          id="btn-read-edit"
+          type="button"
+          onClick={onEdit}
+          title="Edit note"
+          className="w-10 h-10 rounded-full bg-slate-950 dark:bg-amber-500 text-white dark:text-zinc-950 flex items-center justify-center hover:opacity-90 transition shadow-sm"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+      </header>
+
+      <main
+        className="flex-1 overflow-y-auto px-5 py-8 sm:px-10 lg:px-16"
+        onPointerUp={handleReadPointerUp}
+      >
+        <article className="mx-auto max-w-3xl space-y-7">
+          <div className="flex items-start gap-3">
+            {note.is_pinned && (
+              <div className="mt-1 w-8 h-8 shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-200 flex items-center justify-center border border-amber-200 dark:border-amber-900">
+                <Pin className="w-4 h-4 fill-current" />
+              </div>
+            )}
+            <h1 className="text-3xl sm:text-5xl font-black leading-tight text-slate-950 dark:text-white break-words">
+              {note.title || 'Untitled thoughts'}
+            </h1>
+          </div>
+
+          <div className="min-h-[55vh] whitespace-pre-wrap break-words text-base sm:text-lg leading-8 text-slate-700 dark:text-zinc-200">
+            {note.content ? (
+              <LinkifiedText text={note.content} />
+            ) : (
+              <span className="italic text-slate-400 dark:text-zinc-500">No content entered...</span>
+            )}
+          </div>
+        </article>
+      </main>
+    </motion.div>
+  );
+}
+
+function LinkifiedText({ text }: { text: string }) {
+  const urlPattern = /((?:https?:\/\/|mailto:|tel:|sms:)[^\s<>"']+|www\.[^\s<>"']+)/gi;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  text.replace(urlPattern, (match, _group, offset) => {
+    if (offset > lastIndex) {
+      parts.push(text.slice(lastIndex, offset));
+    }
+
+    const cleanMatch = match.replace(/[),.;!?]+$/, '');
+    const trailing = match.slice(cleanMatch.length);
+    const href = cleanMatch.startsWith('www.') ? `https://${cleanMatch}` : cleanMatch;
+
+    parts.push(
+      <a
+        key={`${cleanMatch}-${offset}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-indigo-700 dark:text-amber-300 underline decoration-current/30 underline-offset-4 hover:decoration-current"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span>{cleanMatch}</span>
+        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+      </a>
+    );
+
+    if (trailing) {
+      parts.push(trailing);
+    }
+
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return <>{parts}</>;
 }
