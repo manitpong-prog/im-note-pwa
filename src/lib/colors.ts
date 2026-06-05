@@ -77,13 +77,13 @@ export function getLightNoteTint(index: number): string {
   const normalizedIndex = Math.max(0, Math.min(99, index)) % COLOR_PRESETS.length;
   const tints = [
     'linear-gradient(180deg, #fbfaf7 0%, #f7f7f5 100%)',
-    'linear-gradient(180deg, #fffaf0 0%, #fbfaf7 72%)',
-    'linear-gradient(180deg, #f0f9ff 0%, #fbfaf7 72%)',
-    'linear-gradient(180deg, #effdf6 0%, #fbfaf7 72%)',
-    'linear-gradient(180deg, #f7f3ff 0%, #fbfaf7 72%)',
-    'linear-gradient(180deg, #fff1f4 0%, #fbfaf7 72%)',
-    'linear-gradient(180deg, #fff6ed 0%, #fbfaf7 72%)',
-    'linear-gradient(180deg, #f1f4ff 0%, #fbfaf7 72%)',
+    'linear-gradient(180deg, #fff1bd 0%, #fff8df 48%, #fbfaf7 100%)',
+    'linear-gradient(180deg, #dff4ff 0%, #f0f9ff 52%, #fbfaf7 100%)',
+    'linear-gradient(180deg, #dcfce7 0%, #effdf6 52%, #fbfaf7 100%)',
+    'linear-gradient(180deg, #ede9fe 0%, #f7f3ff 52%, #fbfaf7 100%)',
+    'linear-gradient(180deg, #ffe4e8 0%, #fff1f4 52%, #fbfaf7 100%)',
+    'linear-gradient(180deg, #ffedd5 0%, #fff6ed 52%, #fbfaf7 100%)',
+    'linear-gradient(180deg, #e0e7ff 0%, #f1f4ff 52%, #fbfaf7 100%)',
   ];
   return tints[normalizedIndex];
 }
