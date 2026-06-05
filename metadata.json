@@ -1,0 +1,6 @@
+{
+  "name": "iM Notes Minimal",
+  "description": "A minimal, online-only Supabase-powered PWA note-taking application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
